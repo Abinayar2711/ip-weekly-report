@@ -22,23 +22,26 @@ async function render() {
   console.log("Wrote reports/" + filename);
 }
 
+const { execFileSync } = require("child_process");
+
 const FREEIMAGE_KEY = process.env.FREEIMAGE_KEY || "6d207e02198a847aa98d0a2a901485a5";
 
 async function uploadImage(filePath) {
-  const buffer = fs.readFileSync(filePath);
-  const form = new FormData();
-  form.append("source", new Blob([buffer]), path.basename(filePath));
-  form.append("type", "file");
-  form.append("action", "upload");
+  // Shells out to curl rather than Node's fetch+FormData: freeimage.host's
+  // PHP backend rejects undici's multipart encoding (400 "Internal upload
+  // error") but accepts curl's -F multipart fine (verified locally).
+  const stdout = execFileSync("curl", [
+    "-sS", "--max-time", "45",
+    "-F", `source=@${filePath}`,
+    "-F", "type=file",
+    "-F", "action=upload",
+    `https://freeimage.host/api/1/upload?key=${FREEIMAGE_KEY}`
+  ], { encoding: "utf8" });
 
-  const res = await fetch(`https://freeimage.host/api/1/upload?key=${FREEIMAGE_KEY}`, {
-    method: "POST",
-    body: form
-  });
-  const payload = await res.json();
+  const payload = JSON.parse(stdout);
   const url = payload?.image?.url;
   if (!url || !url.startsWith("https://")) {
-    throw new Error("freeimage.host upload failed: " + JSON.stringify(payload));
+    throw new Error("freeimage.host upload failed: " + stdout);
   }
   return url;
 }
