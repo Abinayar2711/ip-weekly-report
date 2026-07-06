@@ -22,18 +22,31 @@ async function render() {
   console.log("Wrote reports/" + filename);
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+const FREEIMAGE_KEY = process.env.FREEIMAGE_KEY || "6d207e02198a847aa98d0a2a901485a5";
+
+async function uploadImage(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  const form = new FormData();
+  form.append("source", new Blob([buffer]), path.basename(filePath));
+  form.append("type", "file");
+  form.append("action", "upload");
+
+  const res = await fetch(`https://freeimage.host/api/1/upload?key=${FREEIMAGE_KEY}`, {
+    method: "POST",
+    body: form
+  });
+  const payload = await res.json();
+  const url = payload?.image?.url;
+  if (!url || !url.startsWith("https://")) {
+    throw new Error("freeimage.host upload failed: " + JSON.stringify(payload));
+  }
+  return url;
 }
 
 async function send() {
   const filename = fs.readFileSync(path.join("reports", ".last-filename"), "utf8").trim();
-  const repo = process.env.GITHUB_REPOSITORY; // "owner/repo"
-  const branch = process.env.GITHUB_REF_NAME || "main";
-  const imageUrl = `https://raw.githubusercontent.com/${repo}/${branch}/reports/${filename}`;
-
-  // Small buffer for raw.githubusercontent.com to reflect the just-pushed commit.
-  await sleep(5000);
+  const imageUrl = await uploadImage(path.join("reports", filename));
+  console.log("[upload] " + imageUrl);
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;

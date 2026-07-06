@@ -7,8 +7,6 @@ on:
 jobs:
   render-and-send:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,14 +24,6 @@ jobs:
         env:
           STATS_JSON: ${{ toJson(github.event.client_payload) }}
         run: node render-and-send.js render
-
-      - name: Commit rendered image
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add reports/
-          git commit -m "Weekly Pulse report: $(date -u +%Y-%m-%d)" || echo "No changes to commit"
-          git push
 
       - name: Send via Twilio WhatsApp
         env:
