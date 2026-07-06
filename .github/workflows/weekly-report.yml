@@ -22,7 +22,7 @@ jobs:
 
       - name: Render report image
         env:
-          STATS_JSON: ${{ toJson(github.event.client_payload) }}
+          STATS_JSON: ${{ github.event.client_payload.stats }}
         run: node render-and-send.js render
 
       - name: Send via Twilio WhatsApp
