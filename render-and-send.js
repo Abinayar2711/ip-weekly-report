@@ -22,34 +22,18 @@ async function render() {
   console.log("Wrote reports/" + filename);
 }
 
-const { execFileSync } = require("child_process");
-
-const FREEIMAGE_KEY = process.env.FREEIMAGE_KEY || "6d207e02198a847aa98d0a2a901485a5";
-
-async function uploadImage(filePath) {
-  // Shells out to curl rather than Node's fetch+FormData: freeimage.host's
-  // PHP backend rejects undici's multipart encoding (400 "Internal upload
-  // error") but accepts curl's -F multipart fine (verified locally).
-  const stdout = execFileSync("curl", [
-    "-sS", "--max-time", "45",
-    "-F", `source=@${filePath}`,
-    "-F", "type=file",
-    "-F", "action=upload",
-    `https://freeimage.host/api/1/upload?key=${FREEIMAGE_KEY}`
-  ], { encoding: "utf8" });
-
-  const payload = JSON.parse(stdout);
-  const url = payload?.image?.url;
-  if (!url || !url.startsWith("https://")) {
-    throw new Error("freeimage.host upload failed: " + stdout);
-  }
-  return url;
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function send() {
   const filename = fs.readFileSync(path.join("reports", ".last-filename"), "utf8").trim();
-  const imageUrl = await uploadImage(path.join("reports", filename));
-  console.log("[upload] " + imageUrl);
+  const repo = process.env.GITHUB_REPOSITORY; // "owner/repo"
+  const branch = process.env.GITHUB_REF_NAME || "main";
+  const imageUrl = `https://raw.githubusercontent.com/${repo}/${branch}/reports/${filename}`;
+
+  // Small buffer for raw.githubusercontent.com to reflect the just-pushed commit.
+  await sleep(5000);
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
