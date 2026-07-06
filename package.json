@@ -1,0 +1,9 @@
+{
+  "name": "ip-weekly-report",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Renders the IP School Program Weekly Pulse report and sends it via Twilio WhatsApp, triggered by GitHub Actions repository_dispatch.",
+  "dependencies": {
+    "playwright": "^1.58.0"
+  }
+}

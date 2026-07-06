@@ -1,0 +1,44 @@
+name: Weekly Pulse Report
+
+on:
+  repository_dispatch:
+    types: [generate-report]
+
+jobs:
+  render-and-send:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Render report image
+        env:
+          STATS_JSON: ${{ toJson(github.event.client_payload) }}
+        run: node render-and-send.js render
+
+      - name: Commit rendered image
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          git commit -m "Weekly Pulse report: $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+          git push
+
+      - name: Send via Twilio WhatsApp
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+          TWILIO_WHATSAPP_TO: ${{ secrets.TWILIO_WHATSAPP_TO }}
+        run: node render-and-send.js send
